@@ -13,8 +13,8 @@ __author__ = 'Henry'
 '''
 
 import requests, time, hashlib, urllib.request, re, json
-import imageio
-imageio.plugins.ffmpeg.download()
+from imageio import *
+#imageio.plugins.ffmpeg.download()
 from moviepy.editor import *
 import os, sys, threading
 

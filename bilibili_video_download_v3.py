@@ -1,7 +1,7 @@
 # !/usr/bin/python
 # -*- coding:utf-8 -*-
-# time: 2019/07/02--08:12
-__author__ = 'Henry'
+# time: 2021/03/11--08:12
+__author__ = 'Henry''Adam'
 
 
 '''
@@ -11,7 +11,9 @@ __author__ = 'Henry'
 
 20190422 - 增加多P视频单独下载其中一集的功能
 20190702 - 增加视频多线程下载 速度大幅提升
+20210311 - 增加可限制线程
 '''
+
 
 import requests, time, hashlib, urllib.request, re, json
 from moviepy.editor import *
@@ -110,7 +112,7 @@ def format_size(bytes):
 def down_video(video_list, title, start_url, page):
     num = 1
     print('[正在下载P{}段视频,请稍等...]:'.format(page) + title)
-    currentVideoPath = os.path.join(sys.path[0], 'bilibili_video', title)  # 当前目录作为下载目录
+    currentVideoPath = os.path.join("G:\\Git_lib\Bilibili_video_download\\", 'bilibili_video', title) #[更改目录] # 当前目录作为下载目录
     if not os.path.exists(currentVideoPath):
         os.makedirs(currentVideoPath)
     for i in video_list:
@@ -140,7 +142,7 @@ def down_video(video_list, title, start_url, page):
 
 # 合并视频(20190802新版)
 def combine_video(title_list):
-    video_path = os.path.join(sys.path[0], 'bilibili_video')  # 下载目录
+    video_path = os.path.join("G:\\Git_lib\Bilibili_video_download\\", 'bilibili_video')  # 下载目录//sys.path[0], 'bilibili_video'
     for title in title_list:
         current_video_path = os.path.join(video_path ,title)
         if len(os.listdir(current_video_path)) >= 2:
@@ -167,8 +169,78 @@ def combine_video(title_list):
             # 视频只有一段则直接打印下载完成
             print('[视频合并完成]:' + title)
 
+def thread_poll_number(threadpool):
+    thraed_nuber=len(threadpool)
+    print("thraed_nuber:",thraed_nuber)
+    return thraed_nuber
+
+def thread_poll_start(max_thread_number,threadpool):
+    add_flag=False
+    end_flag=False
+    Alive_number=0
+    length_poll=len(threadpool)
+    for i in range(0,max_thread_number):
+        threadpool[i].start()
+    for m in range(0,max_thread_number):
+        if threadpool[m].isAlive():
+            Alive_number=Alive_number+1
+    while(1):
+        if thread_poll_number(threadpool)==0:
+            end_flag=True
+        if end_flag==True:
+            break
+        # 检测是否存活
+        # for m in range(0,max_thread_number):
+        #     if threadpool[m].isAlive():
+        #         Alive_number=Alive_number+1
+        # for n in range(0,thread_poll_number(threadpool)):
+        #     if not threadpool[n].isAlive():
+        #         threadpool.pop(n)
+        #         Alive_number=Alive_number-1
+        #         # 启动
+        # if Alive_number<max_thread_number:
+        #     if thread_poll_number(threadpool)>=max_thread_number:
+        #         threadpool[max_thread_number].start
+        #         if threadpool[max_thread_number].isAlive():
+        #             Alive_number+=1
+        #     else:
+        #         # 等剩下的运行完
+        #         for th in threadpool:
+        #             th.join()
+
+
+        #等待结束
+        for i in range(0,Alive_number):
+            threadpool[i].join()
+
+        # 可能是语法缺陷，需要领取个地址来进行for判断而不影响list变化
+        thread_temp_clear=[]
+
+        # 启动的结束后接着启动
+        for i in range(0,Alive_number):
+            if not threadpool[i].isAlive():
+                thread_temp_clear.append(threadpool[i])
+                Alive_number=Alive_number-1
+        # 根据thread_temp进行removelist
+        for thread_rm in thread_temp_clear:
+            threadpool.remove(thread_rm)
+        thread_temp_clear.clear()
+        if thread_poll_number(threadpool)==0:
+            end_flag=True
+        if end_flag==True:
+            break
+        if thread_poll_number(threadpool)>=max_thread_number:
+            for i in range(0,max_thread_number):
+                threadpool[i].start()
+                Alive_number+=1
+        elif thread_poll_number(threadpool)<max_thread_number and thread_poll_number!=0:
+            for i in range(0,thread_poll_number(threadpool)):
+                threadpool[i].start()
+                Alive_number+=1
+
 
 if __name__ == '__main__':
+
     start_time = time.time()
     # 用户输入av号或者视频链接地址
     print('*' * 30 + 'B站视频下载小助手' + '*' * 30)
@@ -177,7 +249,7 @@ if __name__ == '__main__':
         # 获取cid的api, 传入aid即可
         start_url = 'https://api.bilibili.com/x/web-interface/view?aid=' + start
     else:
-        # https://www.bilibili.com/video/av46958874/?spm_id_from=333.334.b_63686965665f7265636f6d6d656e64.16
+        # https://www.bilibili.com/video/av46958874/?spm_id_from=333.334.b_63686965665f7265636f6d6d656e64.16 797554679
         start_url = 'https://api.bilibili.com/x/web-interface/view?aid=' + re.search(r'/av(\d+)/*', start).group(1)
 
     # 视频质量
@@ -215,18 +287,14 @@ if __name__ == '__main__':
         video_list = get_play_list(start_url, cid, quality)
         start_time = time.time()
         # down_video(video_list, title, start_url, page)
+        #############################################################
         # 定义线程
         th = threading.Thread(target=down_video, args=(video_list, title, start_url, page))
         # 将线程加入线程池
         threadpool.append(th)
-        
-    # 开始线程
-    for th in threadpool:
-        th.start()
-    # 等待所有线程运行完毕
-    for th in threadpool:
-        th.join()
-    
+
+    thread_poll_start(1,threadpool) # 限制线程数量
+
     # 最后合并视频
     print(title_list)
     combine_video(title_list)
@@ -234,10 +302,11 @@ if __name__ == '__main__':
     end_time = time.time()  # 结束时间
     print('下载总耗时%.2f秒,约%.2f分钟' % (end_time - start_time, int(end_time - start_time) / 60))
     # 如果是windows系统，下载完成后打开下载目录
-    currentVideoPath = os.path.join(sys.path[0], 'bilibili_video')  # 当前目录作为下载目录
+    currentVideoPath = os.path.join("G:\\Git_lib\Bilibili_video_download\\", 'bilibili_video') #[更改目录]  # 当前目录作为下载目录
     if (sys.platform.startswith('win')):
         os.startfile(currentVideoPath)
 
 
 # 分P视频下载测试: https://www.bilibili.com/video/av19516333/
+# 限制线程测试：https://www.bilibili.com/video/av797554679  //===//https://www.bilibili.com/video/av797554679?p=170
 # 下载总耗时14.21秒,约0.23分钟
